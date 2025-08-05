@@ -346,6 +346,13 @@ export class AreaLayoutService {
     const style = document.createElement('style');
     style.id = 'area-layout-styles';
     style.textContent = `
+      /* Auto-generated area layout container */
+      .area-layout-auto-container {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 3px solid var(--background-modifier-border);
+      }
+      
       .area-layout-container {
         padding: 20px;
         max-width: 900px;

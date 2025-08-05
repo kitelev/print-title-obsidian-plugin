@@ -511,6 +511,7 @@ var ViewManager = class {
         return;
       }
       this.log("Detected ems__Area file, rendering layout");
+      yield new Promise((resolve) => setTimeout(resolve, 500));
       const activeView = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
       if (!activeView || ((_a = activeView.file) == null ? void 0 : _a.path) !== file.path) {
         return;
@@ -531,14 +532,30 @@ var ViewManager = class {
         }, frontmatter)
       };
       const contentEl = activeView.contentEl;
-      let layoutContainer = contentEl.querySelector(".area-layout-auto-container");
-      if (!layoutContainer) {
-        layoutContainer = contentEl.createDiv("area-layout-auto-container");
-        const editorEl = contentEl.querySelector(".cm-editor");
-        if (editorEl) {
-          editorEl.insertAdjacentElement("afterend", layoutContainer);
-        } else {
-          contentEl.appendChild(layoutContainer);
+      const existingContainers = contentEl.querySelectorAll(".area-layout-auto-container");
+      existingContainers.forEach((el) => el.remove());
+      const layoutContainer = contentEl.createDiv("area-layout-auto-container");
+      const isReadingMode = contentEl.querySelector(".markdown-reading-view") !== null;
+      if (isReadingMode) {
+        const readingView = contentEl.querySelector(".markdown-reading-view");
+        if (readingView) {
+          const previewSection = readingView.querySelector(".markdown-preview-section");
+          if (previewSection && previewSection.parentElement) {
+            previewSection.parentElement.appendChild(layoutContainer);
+          } else {
+            readingView.appendChild(layoutContainer);
+          }
+        }
+      } else {
+        const sourceView = contentEl.querySelector(".markdown-source-view");
+        if (sourceView) {
+          const cmContent = sourceView.querySelector(".cm-content");
+          if (cmContent && cmContent.parentElement) {
+            const wrapper = cmContent.parentElement;
+            wrapper.appendChild(layoutContainer);
+          } else {
+            sourceView.appendChild(layoutContainer);
+          }
         }
       }
       try {
@@ -1559,6 +1576,13 @@ var AreaLayoutService = class {
     const style = document.createElement("style");
     style.id = "area-layout-styles";
     style.textContent = `
+      /* Auto-generated area layout container */
+      .area-layout-auto-container {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 3px solid var(--background-modifier-border);
+      }
+      
       .area-layout-container {
         padding: 20px;
         max-width: 900px;

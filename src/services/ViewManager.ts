@@ -143,6 +143,9 @@ export class ViewManager {
 
 		this.log('Detected ems__Area file, rendering layout');
 
+		// Wait a bit more to ensure the view is fully loaded
+		await new Promise(resolve => setTimeout(resolve, 500));
+
 		// Find a container in the current view to render the layout
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView || activeView.file?.path !== file.path) {
@@ -169,19 +172,41 @@ export class ViewManager {
 
 		// Find or create a container for the area layout
 		const contentEl = activeView.contentEl;
-		let layoutContainer = contentEl.querySelector('.area-layout-auto-container') as HTMLElement;
 		
-		if (!layoutContainer) {
-			// Create container after the frontmatter
-			layoutContainer = contentEl.createDiv('area-layout-auto-container');
-			
-			// Try to insert after frontmatter or at the beginning of content
-			const editorEl = contentEl.querySelector('.cm-editor');
-			if (editorEl) {
-				editorEl.insertAdjacentElement('afterend', layoutContainer);
-			} else {
-				// Fallback: add to the end of content
-				contentEl.appendChild(layoutContainer);
+		// Remove any existing layout containers first
+		const existingContainers = contentEl.querySelectorAll('.area-layout-auto-container');
+		existingContainers.forEach(el => el.remove());
+		
+		// Create new container
+		const layoutContainer = contentEl.createDiv('area-layout-auto-container');
+		
+		// Check if we're in reading mode or source mode
+		const isReadingMode = contentEl.querySelector('.markdown-reading-view') !== null;
+		
+		if (isReadingMode) {
+			// In reading mode, append to the markdown preview section
+			const readingView = contentEl.querySelector('.markdown-reading-view');
+			if (readingView) {
+				const previewSection = readingView.querySelector('.markdown-preview-section');
+				if (previewSection && previewSection.parentElement) {
+					// Insert after all preview sections
+					previewSection.parentElement.appendChild(layoutContainer);
+				} else {
+					readingView.appendChild(layoutContainer);
+				}
+			}
+		} else {
+			// In source mode, we need to append to the CodeMirror content
+			const sourceView = contentEl.querySelector('.markdown-source-view');
+			if (sourceView) {
+				const cmContent = sourceView.querySelector('.cm-content');
+				if (cmContent && cmContent.parentElement) {
+					// Create a wrapper div in the scrollable area
+					const wrapper = cmContent.parentElement;
+					wrapper.appendChild(layoutContainer);
+				} else {
+					sourceView.appendChild(layoutContainer);
+				}
 			}
 		}
 
