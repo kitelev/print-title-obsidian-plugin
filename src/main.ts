@@ -5,6 +5,9 @@ import { ViewManager } from './services/ViewManager';
 import { PrintTitleSettingTab } from './services/SettingsService';
 import { NotificationService } from './services/NotificationService';
 import { FileAnalysisService } from './services/FileAnalysisService';
+import { DataviewAdapter } from './services/DataviewAdapter';
+import { AreaLayoutService } from './services/AreaLayoutService';
+import { AreaCreationService } from './services/AreaCreationService';
 
 export default class PrintTitlePlugin extends Plugin {
 	settings!: PrintTitleSettings;
@@ -12,6 +15,9 @@ export default class PrintTitlePlugin extends Plugin {
 	private viewManager!: ViewManager;
 	private notificationService!: NotificationService;
 	private fileAnalysisService!: FileAnalysisService;
+	private dataviewAdapter!: DataviewAdapter;
+	private areaLayoutService!: AreaLayoutService;
+	private areaCreationService!: AreaCreationService;
 	private customStyleEl: HTMLStyleElement | null = null;
 
 	async onload() {
@@ -23,8 +29,11 @@ export default class PrintTitlePlugin extends Plugin {
 		// Initialize services
 		this.notificationService = new NotificationService(this.settings);
 		this.fileAnalysisService = new FileAnalysisService(this.app, this.settings);
-		this.buttonService = new ButtonService(this.settings, this.notificationService, this.fileAnalysisService);
-		this.viewManager = new ViewManager(this.app, this.buttonService, this.settings);
+		this.dataviewAdapter = new DataviewAdapter(this.app);
+		this.areaLayoutService = new AreaLayoutService(this.app, this.settings);
+		this.areaCreationService = new AreaCreationService(this.app, this.settings);
+		this.buttonService = new ButtonService(this.app, this.settings, this.notificationService, this.fileAnalysisService, this.areaCreationService, this.dataviewAdapter);
+		this.viewManager = new ViewManager(this.app, this.buttonService, this.settings, this.areaLayoutService);
 
 		// Register settings tab
 		this.addSettingTab(new PrintTitleSettingTab(this.app, this));
@@ -113,6 +122,8 @@ export default class PrintTitlePlugin extends Plugin {
 		// Update services with new settings
 		this.notificationService?.updateSettings(this.settings);
 		this.fileAnalysisService?.updateSettings(this.settings);
+		this.areaLayoutService?.updateSettings(this.settings);
+		this.areaCreationService?.updateSettings(this.settings);
 		this.buttonService?.updateSettings(this.settings);
 		this.viewManager?.updateSettings(this.settings);
 		
@@ -225,6 +236,7 @@ export default class PrintTitlePlugin extends Plugin {
 			document.head.appendChild(styleEl);
 		}
 	}
+
 
 	/**
 	 * Debug logging

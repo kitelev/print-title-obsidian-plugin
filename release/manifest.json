@@ -1,9 +1,9 @@
 {
   "id": "print-title-plugin",
   "name": "Print Title Plugin",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "minAppVersion": "1.5.3",
-  "description": "Adds a button to print the current note title",
+  "description": "A configurable plugin that adds smart buttons to notes - print title for regular files, create child areas for ems__Area assets. Automatically renders area layouts for ems__Area files with full Exo asset system integration.",
   "author": "Test Author",
   "authorUrl": "",
   "isDesktopOnly": false

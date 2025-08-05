@@ -1,15 +1,21 @@
-import { MarkdownView, TFile } from 'obsidian';
+import { MarkdownView, TFile, App } from 'obsidian';
 import { FileContext, ButtonConfig, PrintTitleSettings } from '../types';
+import { ExoFileContext } from '../types/ExoTypes';
 import { NotificationService } from './NotificationService';
 import { FileAnalysisService } from './FileAnalysisService';
+import { AreaCreationService } from './AreaCreationService';
+import { DataviewAdapter } from './DataviewAdapter';
 
 export class ButtonService {
 	private buttonMap: WeakMap<HTMLElement, HTMLButtonElement> = new WeakMap();
 
 	constructor(
+		private app: App,
 		private settings: PrintTitleSettings,
 		private notificationService: NotificationService,
-		private fileAnalysisService: FileAnalysisService
+		private fileAnalysisService: FileAnalysisService,
+		private areaCreationService: AreaCreationService,
+		private dataviewAdapter: DataviewAdapter
 	) {}
 
 	/**
@@ -22,7 +28,7 @@ export class ButtonService {
 	/**
 	 * Add button to a specific view
 	 */
-	addButtonToView(view: MarkdownView): void {
+	async addButtonToView(view: MarkdownView): Promise<void> {
 		if (!view || !view.file) {
 			this.log('No valid view or file found');
 			return;
@@ -42,9 +48,10 @@ export class ButtonService {
 		// Remove any old buttons
 		this.removeExistingButtons(contentEl);
 
-		// Create and insert button
-		const buttonConfig = this.createButtonConfig();
-		const button = this.createButton(buttonConfig, fileContext);
+		// Check if this is an ems__Area and create appropriate button
+		const isEmsArea = await this.isEmsAreaFile(view);
+		const buttonConfig = this.createButtonConfig(isEmsArea);
+		const button = this.createButton(buttonConfig, fileContext, isEmsArea);
 		this.insertButton(contentEl, button, buttonConfig.position);
 
 		// Store reference
@@ -83,16 +90,29 @@ export class ButtonService {
 		};
 	}
 
-	private createButtonConfig(): ButtonConfig {
-		const displayText = this.settings.showIcon 
-			? `${this.settings.buttonIcon} ${this.settings.buttonText}`.trim()
-			: this.settings.buttonText;
+	private createButtonConfig(isEmsArea: boolean = false): ButtonConfig {
+		let displayText: string;
+		let buttonClass: string;
+
+		if (isEmsArea) {
+			// Special button for ems__Area files
+			displayText = this.settings.showIcon 
+				? `🏗️ Create Child Area`
+				: 'Create Child Area';
+			buttonClass = 'print-title-button area-create-button';
+		} else {
+			// Standard print title button
+			displayText = this.settings.showIcon 
+				? `${this.settings.buttonIcon} ${this.settings.buttonText}`.trim()
+				: this.settings.buttonText;
+			buttonClass = 'print-title-button';
+		}
 
 		return {
 			text: displayText,
 			icon: this.settings.showIcon ? this.settings.buttonIcon : undefined,
 			position: this.settings.buttonPosition,
-			className: 'print-title-button'
+			className: buttonClass
 		};
 	}
 
@@ -106,7 +126,7 @@ export class ButtonService {
 		oldContainers.forEach(container => container.remove());
 	}
 
-	private createButton(config: ButtonConfig, context: FileContext): HTMLButtonElement {
+	private createButton(config: ButtonConfig, context: FileContext, isEmsArea: boolean = false): HTMLButtonElement {
 		// Create button container
 		const buttonContainer = document.createElement('div');
 		buttonContainer.className = 'print-title-container';
@@ -119,7 +139,7 @@ export class ButtonService {
 		this.styleButton(button);
 
 		// Add click handler
-		button.addEventListener('click', (e) => this.handleButtonClick(e, context));
+		button.addEventListener('click', (e) => this.handleButtonClick(e, context, isEmsArea));
 
 		// Add hover effects
 		this.addHoverEffects(button);
@@ -192,20 +212,19 @@ export class ButtonService {
 		});
 	}
 
-	private async handleButtonClick(event: Event, context: FileContext): Promise<void> {
+	private async handleButtonClick(event: Event, context: FileContext, isEmsArea: boolean = false): Promise<void> {
 		event.preventDefault();
 		event.stopPropagation();
 
-		this.log(`Button clicked for file: ${context.fileName}`);
+		this.log(`Button clicked for file: ${context.fileName}, isEmsArea: ${isEmsArea}`);
 
 		try {
-			// Show enhanced notification
-			if (this.settings.showEnhancedInfo) {
-				this.notificationService.showTitleNotification(context);
+			if (isEmsArea) {
+				// Handle ems__Area specific action - create child area
+				await this.handleAreaAction(context);
 			} else {
-				// Simple notification
-				const message = `${this.settings.showIcon ? '📄 ' : ''}${context.file.basename}`;
-				this.notificationService.showInfo(message.replace('ℹ️ ', ''));
+				// Handle standard print title action
+				await this.handlePrintTitleAction(context);
 			}
 
 			// Visual feedback with animation
@@ -216,16 +235,57 @@ export class ButtonService {
 					button.style.transform = 'translateY(0)';
 				}, 150);
 			}
-
-			// Log file analysis if debug mode is enabled
-			if (this.settings.enableDebugMode && this.settings.showFileStats) {
-				const analysis = await this.fileAnalysisService.analyzeFile(context);
-				const stats = this.fileAnalysisService.getFileStats(analysis);
-				this.log(`File stats: ${stats.join(', ')}`);
-			}
 		} catch (error) {
 			this.log('Error handling button click:', error);
-			this.notificationService.showError('Failed to process file information');
+			this.notificationService.showError('Failed to process action');
+		}
+	}
+
+	/**
+	 * Handle ems__Area specific actions
+	 */
+	private async handleAreaAction(context: FileContext): Promise<void> {
+		this.log('Handling area action - creating child area');
+
+		// Convert to ExoFileContext
+		const exoContext: ExoFileContext = {
+			fileName: context.fileName,
+			filePath: context.filePath,
+			file: context.file,
+			frontmatter: context.frontmatter,
+			currentPage: {
+				file: {
+					path: context.file.path,
+					name: context.file.name,
+					link: null,
+					mtime: new Date(context.file.stat.mtime)
+				},
+				'exo__Instance_class': context.frontmatter?.['exo__Instance_class'] || [],
+				...context.frontmatter
+			}
+		};
+
+		await this.areaCreationService.createChildArea(exoContext);
+	}
+
+	/**
+	 * Handle standard print title action
+	 */
+	private async handlePrintTitleAction(context: FileContext): Promise<void> {
+		// Show enhanced notification
+		if (this.settings.showEnhancedInfo) {
+			this.notificationService.showTitleNotification(context);
+		} else {
+			// Simple notification
+			const message = `${this.settings.showIcon ? '📄 ' : ''}${context.file.basename}`;
+			this.notificationService.showInfo(message.replace('ℹ️ ', ''));
+		}
+
+		// Log file analysis if debug mode is enabled
+		if (this.settings.enableDebugMode && this.settings.showFileStats) {
+			const analysis = await this.fileAnalysisService.analyzeFile(context);
+			const stats = this.fileAnalysisService.getFileStats(analysis);
+			this.log(`File stats: ${stats.join(', ')}`);
 		}
 	}
 
@@ -300,6 +360,40 @@ export class ButtonService {
 
 		this.log('No frontmatter found');
 		return null;
+	}
+
+	/**
+	 * Check if the current file is an ems__Area asset
+	 */
+	private async isEmsAreaFile(view: MarkdownView): Promise<boolean> {
+		if (!view || !view.file) return false;
+
+		try {
+			// Get file cache to check frontmatter
+			const cache = this.app.metadataCache.getFileCache(view.file);
+			const frontmatter = cache?.frontmatter;
+			
+			if (!frontmatter || !frontmatter['exo__Instance_class']) {
+				return false;
+			}
+
+			const instanceClasses = Array.isArray(frontmatter['exo__Instance_class']) 
+				? frontmatter['exo__Instance_class'] 
+				: [frontmatter['exo__Instance_class']];
+
+			// Check if any of the instance classes contains 'ems__Area'
+			return instanceClasses.some((cls: any) => {
+				if (typeof cls === 'string') {
+					return cls.includes('ems__Area');
+				} else if (cls && cls.path) {
+					return cls.path.includes('ems__Area');
+				}
+				return false;
+			});
+		} catch (error) {
+			this.log('Error checking if file is ems__Area:', error);
+			return false;
+		}
 	}
 
 	private log(message: string, ...args: any[]): void {

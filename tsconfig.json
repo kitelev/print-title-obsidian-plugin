@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "moduleResolution": "node",
     "outDir": "./",
-    "rootDir": "./",
+    "rootDir": "./src",
     "baseUrl": ".",
     "inlineSourceMap": true,
     "inlineSources": true,
@@ -20,6 +20,6 @@
     "strictNullChecks": true,
     "declaration": false
   },
-  "include": ["src/**/*.ts", "**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "tests", "obsidian-docker"]
 }
