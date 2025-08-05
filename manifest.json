@@ -1,0 +1,10 @@
+{
+  "id": "print-title-plugin",
+  "name": "Print Title Plugin",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.3",
+  "description": "Adds a button to print the current note title",
+  "author": "Test Author",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

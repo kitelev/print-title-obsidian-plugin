@@ -1,0 +1,28 @@
+# Node modules
+node_modules/
+
+# Build files
+*.js.map
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Mac system files
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+
+# Obsidian config
+.obsidian/
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Don't ignore the main.js file (compiled output)
+!main.js
