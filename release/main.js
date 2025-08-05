@@ -1,7 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const obsidian_1 = require("obsidian");
-class PrintTitlePlugin extends obsidian_1.Plugin {
+import { Plugin, Notice, MarkdownView } from 'obsidian';
+export default class PrintTitlePlugin extends Plugin {
     constructor() {
         super(...arguments);
         this.buttonMap = new WeakMap();
@@ -20,7 +18,7 @@ class PrintTitlePlugin extends obsidian_1.Plugin {
         this.app.workspace.trigger('layout-change');
     }
     addPrintButton() {
-        const activeLeaf = this.app.workspace.getActiveViewOfType(obsidian_1.MarkdownView);
+        const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
         if (!activeLeaf)
             return;
         const contentEl = activeLeaf.contentEl;
@@ -38,7 +36,7 @@ class PrintTitlePlugin extends obsidian_1.Plugin {
         button.addEventListener('click', () => {
             const file = activeLeaf.file;
             if (file) {
-                new obsidian_1.Notice(file.basename);
+                new Notice(file.basename);
             }
         });
         contentEl.appendChild(button);
@@ -48,4 +46,3 @@ class PrintTitlePlugin extends obsidian_1.Plugin {
         document.querySelectorAll('.print-title-button').forEach(el => el.remove());
     }
 }
-exports.default = PrintTitlePlugin;
